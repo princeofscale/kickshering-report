@@ -44,6 +44,8 @@ impact**, строго в рамках легального security research: �
     физической проверки
 16. [**BLE Protocol Reference**](docs/16-ble-protocol-reference.md) — verified UUID'ы, имена,
     пакетный формат (по первоисточникам)
+17. [**Полевой чек-лист Whoosh/Urent (iPhone)**](docs/17-whoosh-urent-checklist.md) — что и как
+    проверять завтра, только с телефона, read-only
 
 ## Итоговое резюме (один абзац)
 

@@ -9,18 +9,33 @@ iPhone. Не публикуется в App Store, не требует платн
 ограничением: сборка с бесплатным аккаунтом переподписывается каждые 7 дней — для этого
 исследования это не проблема, просто периодически пересобирайте через Xcode).
 
-## Что делает приложение
+## Что делает приложение (всё офлайн, на самом телефоне)
 
-- **Scan**: слушает BLE advertising пакеты (имя, RSSI, service UUIDs, manufacturer data),
-  отображает список обнаруженных устройств в реальном времени.
-- **Connect & Enumerate** (по тапу на устройство): подключается, читает список services →
-  characteristics → properties. Для характеристик со свойством `read` автоматически выполняет
-  чтение и логирует hex-значение.
-- **Export Log**: экспортирует накопленный лог (advertising records + последний GATT snapshot)
-  в JSON через стандартный iOS share sheet (AirDrop себе на Mac, "Save to Files", отправить в
-  заметки и т.д.).
-- **Никогда не пишет** в характеристики устройства — в коде физически нет вызова
-  `writeValue(_:for:type:)`. Это осознанное ограничение, см. [`../README.md`](../README.md).
+Три вкладки:
+
+- **Scan** — слушает BLE advertising (имя, RSSI, service UUIDs, manufacturer data), сортирует
+  список так, что вероятные Ninebot/Xiaomi устройства (по имени `MISc`/`NBSc` или по рекламе
+  Nordic UART Service) поднимаются наверх с бейджем «Ninebot/Xiaomi?». Тап по устройству →
+  экран детали.
+  - На экране детали: кнопка **Connect & analyze (read-only)** — сперва показывает диалог
+    подтверждения авторизации, затем подключается и делает read-only enumerate. Автоматически
+    декодирует Device Information (manufacturer / model / **firmware** / hardware / software /
+    serial) в текст — это связка «модель → прошивка → BLE-версия», ради которой всё затевалось.
+  - Тут же **on-device анализ**: находит Nordic UART Service, перечисляет write-способные
+    характеристики (потенциальный команд-канал, уровень E — но приложение в них **не пишет**),
+    выдаёт findings с пометкой важности.
+  - Кнопка **Save snapshot** с меткой и тегом оператора (Whoosh/Urent/own) — сохраняет захват
+    на телефон.
+- **Saved** — список сохранённых захватов; тап открывает Markdown-отчёт (полная GATT-карта +
+  findings), которым можно поделиться (share sheet). «Export all» выгружает все захваты одним
+  JSON.
+- **Diff** — выбираете два сохранённых захвата (например, «до аренды» и «во время аренды») →
+  Markdown-отчёт различий GATT-поверхности. Это ключевой безопасный шаг проверки главной
+  гипотезы (docs/08) — **прямо на телефоне, без ноутбука**.
+
+**Никогда не пишет** в характеристики устройства — в коде физически нет вызова
+`writeValue(_:for:type:)` (проверяемо: `grep writeValue` находит только комментарии). Это
+осознанное ограничение, см. [`../README.md`](../README.md).
 
 ## Сборка и запуск (пошагово)
 
@@ -35,12 +50,15 @@ iPhone. Не публикуется в App Store, не требует платн
    git-репозитория).
 4. В навигаторе проекта Xcode **удалите** автоматически созданный `ContentView.swift` (оставьте
    `BLEInspectorApp.swift`), затем **добавьте** (drag & drop, или File → Add Files to
-   "BLEInspector"…) файлы из этого каталога:
+   "BLEInspector"…) все `.swift`-файлы из этого каталога:
    - [`BLEInspector/BLEInspectorApp.swift`](BLEInspector/BLEInspectorApp.swift) — заменяет
      сгенерированный Xcode файл (при добавлении разрешите перезаписать/используйте этот вместо
      дефолтного).
-   - [`BLEInspector/BLEManager.swift`](BLEInspector/BLEManager.swift)
-   - [`BLEInspector/ContentView.swift`](BLEInspector/ContentView.swift)
+   - [`BLEInspector/BLEManager.swift`](BLEInspector/BLEManager.swift) — CoreBluetooth (read-only).
+   - [`BLEInspector/Catalog.swift`](BLEInspector/Catalog.swift) — verified UUID/имена (docs/16).
+   - [`BLEInspector/GATTAnalyzer.swift`](BLEInspector/GATTAnalyzer.swift) — офлайн-анализаторы.
+   - [`BLEInspector/SnapshotStore.swift`](BLEInspector/SnapshotStore.swift) — сохранение захватов.
+   - [`BLEInspector/ContentView.swift`](BLEInspector/ContentView.swift) — UI (3 вкладки).
 5. Откройте `Info` таб настроек таргета (или `Info.plist`, если ваш шаблон его создаёт) и
    добавьте ключ **Privacy - Bluetooth Always Usage Description**
    (`NSBluetoothAlwaysUsageDescription`) со значением, например: `"Passive BLE research tool —
@@ -71,12 +89,20 @@ enumerate services/characteristics/properties, (3) read (не write!) харак
 
 ## Файлы
 
-- [`BLEInspector/BLEInspectorApp.swift`](BLEInspector/BLEInspectorApp.swift) — точка входа
-  SwiftUI-приложения.
-- [`BLEInspector/BLEManager.swift`](BLEInspector/BLEManager.swift) — вся CoreBluetooth-логика
-  (scan, connect, discover services/characteristics, read-only reads, JSON export).
-- [`BLEInspector/ContentView.swift`](BLEInspector/ContentView.swift) — UI (список устройств,
-  лог, кнопки Scan/Export).
+- [`BLEInspector/BLEInspectorApp.swift`](BLEInspector/BLEInspectorApp.swift) — точка входа.
+- [`BLEInspector/BLEManager.swift`](BLEInspector/BLEManager.swift) — CoreBluetooth-логика
+  (scan, connect, discover, read-only reads, DIS-декод, JSON export). Без write-вызовов.
+- [`BLEInspector/Catalog.swift`](BLEInspector/Catalog.swift) — verified Ninebot/Xiaomi UUID'ы
+  и каталог стандартных Bluetooth SIG UUID → человекочитаемые имена (docs/16).
+- [`BLEInspector/GATTAnalyzer.swift`](BLEInspector/GATTAnalyzer.swift) — офлайн-анализаторы:
+  device identity, детект NUS, write-capable список, findings, diff, Markdown-отчёты.
+- [`BLEInspector/SnapshotStore.swift`](BLEInspector/SnapshotStore.swift) — сохранение захватов
+  на телефон (Documents/JSON) для diff «до/после».
+- [`BLEInspector/ContentView.swift`](BLEInspector/ContentView.swift) — UI: вкладки Scan / Saved
+  / Diff, экран детали с анализом, отчёты.
+
+Перед запуском на реальном устройстве прочитайте `BLEManager.swift` и убедитесь сами, что там
+нет write-вызовов (`grep writeValue` → только комментарии).
 
 Это исследовательский код (research-grade), не продакшен-качества — при сборке в Xcode
 возможны мелкие правки (например, доступность SwiftUI API под вашу версию iOS). Основная

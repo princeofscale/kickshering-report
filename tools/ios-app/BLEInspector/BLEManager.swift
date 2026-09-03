@@ -19,25 +19,8 @@
 import Foundation
 import CoreBluetooth
 
-// MARK: - Verified Ninebot/Xiaomi constants (see ../../../docs/16-ble-protocol-reference.md)
-
-enum NinebotRef {
-    // Nordic UART Service transport used by the classic protocol (source: etransport/py9b).
-    static let nusServiceUUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
-    static let nusRXCharUUID  = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"  // phone -> scooter (write)
-    static let nusTXCharUUID  = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"  // scooter -> phone (notify)
-    static let namePrefixes: [String: String] = [
-        "MISc": "Mi Scooter (Xiaomi M365 family)",
-        "NBSc": "Ninebot Scooter (Max/ES family)",
-    ]
-
-    /// Human label if the advertised name matches a known prefix, else nil.
-    static func familyForName(_ name: String?) -> String? {
-        guard let name = name else { return nil }
-        for (prefix, label) in namePrefixes where name.hasPrefix(prefix) { return label }
-        return nil
-    }
-}
+// Verified Ninebot/Xiaomi constants and the standard-UUID catalog now live in
+// Catalog.swift (NinebotRef, GATTCatalog). See docs/16-ble-protocol-reference.md.
 
 // MARK: - Data models (Codable for JSON export)
 
@@ -58,6 +41,7 @@ struct CharacteristicRecord: Codable {
     let properties: [String]
     let isReadable: Bool
     var valueHex: String?
+    var decodedString: String?   // ASCII/UTF-8 decode for known Device Information string chars
     var readError: String?
 }
 
@@ -228,7 +212,8 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             let props = propertyNames(c.properties)
             let isReadable = c.properties.contains(.read)
             chars.append(CharacteristicRecord(uuid: c.uuid.uuidString, properties: props,
-                                                isReadable: isReadable, valueHex: nil, readError: nil))
+                                                isReadable: isReadable, valueHex: nil,
+                                                decodedString: nil, readError: nil))
             if isReadable {
                 readableCount += 1
                 // SAFE: only characteristics that advertise .read are ever touched, and
@@ -262,9 +247,20 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             }
         } else if let data = characteristic.value {
             let hex = data.map { String(format: "%02x", $0) }.joined()
-            appendLog("Read \(characteristic.uuid): 0x\(hex) (\(data.count) bytes)")
-            updateCharacteristic(peripheralID: id, serviceUUID: serviceUUID, charUUID: characteristic.uuid.uuidString) { rec in
+            let charUUID = characteristic.uuid.uuidString
+            // Decode to text only for known Device Information string characteristics
+            // (manufacturer/model/serial/firmware/hardware/software), which are the
+            // fields that map a device to its model + firmware version (docs/02, docs/16).
+            var decoded: String? = nil
+            if GATTCatalog.stringDecodableChars.contains(GATTCatalog.normalize(charUUID)),
+               let s = String(data: data, encoding: .utf8),
+               s.contains(where: { !$0.isWhitespace }) {
+                decoded = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            appendLog("Read \(charUUID): 0x\(hex)\(decoded.map { " = \"\($0)\"" } ?? "") (\(data.count) bytes)")
+            updateCharacteristic(peripheralID: id, serviceUUID: serviceUUID, charUUID: charUUID) { rec in
                 rec.valueHex = hex
+                rec.decodedString = decoded
             }
         }
 
@@ -314,6 +310,13 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         if servicesSeenCount[id, default: 0] >= expected {
             appendLog("GATT enumeration complete for \(peripheral.name ?? id).")
         }
+    }
+
+    // MARK: Accessors for the on-device analyzers
+
+    /// The most recent GATT snapshot captured for a peripheral (nil if not yet enumerated).
+    func snapshot(for peripheralID: String) -> GATTSnapshot? {
+        snapshots[peripheralID]
     }
 
     // MARK: Export

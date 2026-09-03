@@ -59,6 +59,10 @@
   уровень E).
 - `valueHex`: заполняется только для характеристик с `isReadable: true` (или `"read" in
   properties` в Python-варианте). Для остальных всегда `null` — это ожидаемо, не ошибка.
+- `decodedString` (только iOS-экспорт): ASCII/UTF-8 декод значения для известных строковых
+  характеристик Device Information Service (manufacturer/model/serial/firmware/hardware/
+  software). Именно это поле даёт связку «модель → firmware». В Python-экспорте отсутствует —
+  анализатор `analyze_gatt_log.py` его не требует и корректно обрабатывает оба формата.
 
 ## Как использовать для Field Testing Guide, Шаг 3 (diff до/после аренды)
 
