@@ -46,6 +46,8 @@ impact**, строго в рамках легального security research: �
     пакетный формат (по первоисточникам)
 17. [**Полевой чек-лист Whoosh/Urent (iPhone)**](docs/17-whoosh-urent-checklist.md) — что и как
     проверять завтра, только с телефона, read-only
+18. [**Прецедент Äike/Tuul**](docs/18-aike-tuul-precedent.md) — default-key unlock и «BLE
+    выключен = защита» (подтверждённый отраслевой прецедент)
 
 ## Итоговое резюме (один абзац)
 

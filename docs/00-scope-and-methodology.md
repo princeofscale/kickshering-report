@@ -56,6 +56,7 @@
 15. [Field Testing Guide (iPhone / laptop)](15-field-testing-guide.md)
 16. [BLE Protocol Reference (verified constants)](16-ble-protocol-reference.md)
 17. [Полевой чек-лист: проверка Whoosh и Urent с iPhone](17-whoosh-urent-checklist.md)
+18. [Прецедент Äike/Tuul: default-key unlock и «BLE выключен = защита»](18-aike-tuul-precedent.md)
 
 Инструменты: [`tools/`](../tools/README.md) — iOS-приложение (Xcode/Swift) и Python-скрипты
 для read-only проверки на своём оборудовании.

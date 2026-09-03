@@ -13,6 +13,9 @@
 | Broken authorization при создании заказа аренды через backend API | Неустановленный русскоязычный кикшеринг-оператор (не привязано конкретно к Whoosh/Urent) | **CONFIRMED существование класса**, оператор не идентифицирован | Habr, "Как мы кикшеринг взломали", апрель 2022 |
 | Локальный BLE-unlock без rental-session на актуальных Whoosh/Urent юнитах | Whoosh (Max G30/Max Plus), Urent (Max Plus) | **UNCONFIRMED** | Данное исследование (гипотеза, не PoC) |
 | Официальное заявление "нельзя удалённо подключиться к плате" | МТС Юрент | **Заявление вендора, не независимо верифицировано** | Gazeta.ru, май 2025 |
+| Default BLE-ключ `ff…ff` на всём парке → универсальный unlock | Äike (потребительские; НЕ Ninebot) | **CONFIRMED** — [§18](18-aike-tuul-precedent.md) | Moorats/nns.ee, The Register, Hackaday, янв 2026 |
+| Прокатные юниты защищены отключённым BLE | Tuul (шеринг, сестра Äike) | **CONFIRMED** — «absence of a feature = security feature» | те же |
+| Encryption2 = AES-128 CCM-like (CTR+CBC-MAC) + 3-фазный handshake, ключи per-device | Современный Ninebot (Max Plus 2020–2023 и др.) | **PROBABLE** (вторичные пересказы NootNooot, согласованы) — [§16.4](16-ble-protocol-reference.md#164-криптослой--два-поколения-не-путать-по-стойкости) | NootNooot summaries, ha-ninebot |
 | Аккаунт-шаринг между пользователями (policy, не BLE/firmware bug) | Whoosh | **POSSIBLE/анекдотично**, не техническая уязвимость | vc.ru, "Дырявый WHOOSH" |
 
 Каждая строка со статусом UNCONFIRMED — кандидат на то, чтобы стать CONFIRMED или DISPROVEN
