@@ -48,6 +48,8 @@ impact**, строго в рамках легального security research: �
     проверять завтра, только с телефона, read-only
 18. [**Прецедент Äike/Tuul**](docs/18-aike-tuul-precedent.md) — default-key unlock и «BLE
     выключен = защита» (подтверждённый отраслевой прецедент)
+19. [**Смежные CVE и ландшафт инструментов**](docs/19-adjacent-cves-and-tools.md) — Yadea/Zero
+    (2025–26), read-only vs модификация
 
 ## Итоговое резюме (один абзац)
 

@@ -76,8 +76,8 @@ struct ScanView: View {
 
     private var sortedDevices: [AdvertisementRecord] {
         ble.discovered.values.sorted {
-            let la = ($0.likelyNinebotFamily != nil || $0.advertisesNordicUART) ? 1 : 0
-            let lb = ($1.likelyNinebotFamily != nil || $1.advertisesNordicUART) ? 1 : 0
+            let la = ($0.likelyNinebotFamily != nil || $0.advertisesNinebotService) ? 1 : 0
+            let lb = ($1.likelyNinebotFamily != nil || $1.advertisesNinebotService) ? 1 : 0
             if la != lb { return la > lb }         // likely-Ninebot first
             return $0.rssi > $1.rssi                // then strongest signal
         }
@@ -87,7 +87,7 @@ struct ScanView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
                 Text(rec.name ?? "Unnamed device").bold()
-                if rec.likelyNinebotFamily != nil || rec.advertisesNordicUART {
+                if rec.likelyNinebotFamily != nil || rec.advertisesNinebotService {
                     Text("Ninebot/Xiaomi?").font(.caption2)
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .background(Color.orange.opacity(0.25)).cornerRadius(4)
@@ -95,7 +95,7 @@ struct ScanView: View {
             }
             if let fam = rec.likelyNinebotFamily { Text(fam).font(.caption2).foregroundColor(.orange) }
             Text("RSSI \(rec.rssi)   ID \(String(rec.peripheralID.prefix(8)))…").font(.caption2)
-            if rec.advertisesNordicUART { Text("Advertises Nordic UART Service").font(.caption2).foregroundColor(.secondary) }
+            if rec.advertisesNinebotService { Text("Advertises Ninebot service").font(.caption2).foregroundColor(.secondary) }
         }
     }
 }
@@ -122,7 +122,7 @@ struct DeviceDetailView: View {
                     row("Name", record.name ?? "—")
                     row("RSSI", "\(record.rssi)")
                     row("Family", record.likelyNinebotFamily ?? "not matched")
-                    row("Nordic UART advertised", record.advertisesNordicUART ? "yes" : "no")
+                    row("Ninebot service advertised", record.advertisesNinebotService ? "yes" : "no")
                     if let mfg = record.manufacturerDataHex { row("Mfg data", "0x\(mfg)") }
                 }
 

@@ -15,17 +15,32 @@ read-only проверки ([Field Testing Guide, §15](15-field-testing-guide.m
 
 ## 16.1 GATT — Nordic UART Service (NUS)
 
-"Classic" Xiaomi/Ninebot протокол туннелируется поверх Nordic UART Service — фактически
-последовательный поток внутри двух BLE-характеристик.
+Есть **два семейства сервисов** — критично уметь распознавать оба, потому что rental-Ninebot
+(Max Plus / S90L) может использовать native-ветку, а не Nordic UART.
+
+### Семейство A — Legacy / M365 (Nordic UART Service)
 
 | Роль | UUID | Свойства (ожидаемо) | Источник |
 |---|---|---|---|
 | Service (NUS) | `6e400001-b5a3-f393-e0a9-e50e24dcca9e` | — | выводится из RX/TX (NUS base) |
-| RX — запись **в** скутер (phone → scooter) | `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | `write` / `writeWithoutResponse` | `etransport/py9b` (`py9b/link/ble.py`, `_rx_char_uuid`) |
-| TX — нотификации **от** скутера (scooter → phone) | `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | `notify` | `etransport/py9b` (`_tx_char_uuid`) |
-| CCCD (descriptor для включения notify) | `00002902-0000-1000-8000-00805f9b34fb` | — | `etransport/py9b` (стандартный BLE CCCD) |
+| RX — запись **в** скутер (phone → scooter) | `6e400002-b5a3-f393-e0a9-e50e24dcca9e` | `write` / `writeWithoutResponse` | `etransport/py9b` (`_rx_char_uuid`) |
+| TX — нотификации **от** скутера | `6e400003-b5a3-f393-e0a9-e50e24dcca9e` | `notify` | `etransport/py9b` (`_tx_char_uuid`) |
+| CCCD | `00002902-0000-1000-8000-00805f9b34fb` | — | стандартный BLE CCCD |
 
-**Важно для анализа:** RX-характеристика `...0002` имеет свойство **write** — то есть в
+### Семейство B — Native Ninebot (verified: gist djensenius, Segway BLE Reference)
+
+| Роль | UUID | Свойства (ожидаемо) | Источник |
+|---|---|---|---|
+| Service (Ninebot) | `6e400001-0000-0000-006e-696e65626f74` | — | хвост `6e 69 6e 65 62 6f 74` = ASCII **"ninebot"** |
+| Write (phone → scooter) | `6e400002-0000-0000-006e-696e65626f74` | `write` / `writeWithoutResponse` | djensenius Segway GT3 Pro BLE Reference |
+| **Notify (scooter → phone) — `…0004`, НЕ `…0003`!** | `6e400004-0000-0000-006e-696e65626f74` | `notify` | djensenius (прямо отмечено как #1 источник багов подключения) |
+
+> Практический маркер на завтра: если видите **любой** service UUID, чей хвост содержит
+> `696e65626f74` («ninebot» в ASCII) — это native Ninebot-сервис, даже если имя устройства
+> переименовано оператором. Инструменты репозитория распознают оба семейства.
+
+**Важно для анализа:** write-характеристика `...0002` (в обоих семействах) имеет свойство
+**write** — то есть в
 терминах [§10, уровень E](10-safe-poc-methodology.md) это и есть канал, через который
 теоретически подаётся любая команда (включая гипотетический unlock). Инструменты в этом
 репозитории **фиксируют** наличие этого write-свойства, но **никогда в него не пишут**. Сам

@@ -13,9 +13,19 @@ import Foundation
 // MARK: - Verified Ninebot/Xiaomi constants (docs/16)
 
 enum NinebotRef {
+    // Family A -- Legacy / M365 (Nordic UART Service). Source: etransport/py9b.
     static let nusServiceUUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
     static let nusRXCharUUID  = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"  // phone -> scooter (write)
     static let nusTXCharUUID  = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"  // scooter -> phone (notify)
+
+    // Family B -- Native Ninebot service. Source: djensenius Segway BLE Reference.
+    // Suffix = ASCII "ninebot". NOTE: notify is ...0004, NOT ...0003.
+    static let nbServiceUUID   = "6E400001-0000-0000-006E-696E65626F74"
+    static let nbWriteCharUUID = "6E400002-0000-0000-006E-696E65626F74"  // phone -> scooter (write)
+    static let nbNotifyCharUUID = "6E400004-0000-0000-006E-696E65626F74" // scooter -> phone (notify)
+
+    // ASCII "ninebot" marker; any service UUID whose hex contains it is a native Ninebot service.
+    static let asciiMarker = "696E65626F74"
 
     static let namePrefixes: [String: String] = [
         "MISc": "Mi Scooter (Xiaomi M365 family)",
@@ -27,6 +37,19 @@ enum NinebotRef {
         guard let name = name else { return nil }
         for (prefix, label) in namePrefixes where name.hasPrefix(prefix) { return label }
         return nil
+    }
+
+    /// True if UUID is a known Ninebot transport service (either family) or embeds the ASCII marker.
+    static func isNinebotService(_ uuid: String) -> Bool {
+        let u = GATTCatalog.normalize(uuid)
+        if u == nusServiceUUID || u == nbServiceUUID { return true }
+        return u.replacingOccurrences(of: "-", with: "").contains(asciiMarker)
+    }
+
+    /// True for the write ('command') characteristic of either service family.
+    static func isCommandWriteChar(_ uuid: String) -> Bool {
+        let u = GATTCatalog.normalize(uuid)
+        return u == nusRXCharUUID || u == nbWriteCharUUID
     }
 }
 
@@ -70,10 +93,14 @@ enum GATTCatalog {
         put("2A01", "Appearance")
         // Battery
         put("2A19", "Battery Level")
-        // Nordic UART Service
-        m[NinebotRef.nusServiceUUID] = "Nordic UART Service (classic Ninebot/Xiaomi transport)"
+        // Family A -- Nordic UART Service
+        m[NinebotRef.nusServiceUUID] = "Nordic UART Service (Ninebot/Xiaomi transport, family A)"
         m[NinebotRef.nusRXCharUUID]  = "NUS RX — command channel (phone → scooter, write)"
         m[NinebotRef.nusTXCharUUID]  = "NUS TX — telemetry (scooter → phone, notify)"
+        // Family B -- Native Ninebot service (UUID embeds ASCII "ninebot")
+        m[NinebotRef.nbServiceUUID]    = "Native Ninebot Service (transport, family B)"
+        m[NinebotRef.nbWriteCharUUID]  = "Ninebot write — command channel (phone → scooter, write)"
+        m[NinebotRef.nbNotifyCharUUID] = "Ninebot notify — telemetry (scooter → phone, notify, ...0004)"
         return m
     }()
 

@@ -52,10 +52,11 @@ def char_props(char: dict) -> list[str]:
 def analyze_snapshot(snap: dict) -> dict:
     services = snap.get("services", [])
     svc_uuids = {ref.normalize_uuid(s["uuid"]) for s in services}
-    has_nus = ref.NUS_SERVICE_UUID in svc_uuids
+    ninebot_services = sorted(u for u in svc_uuids if ref.is_ninebot_service(u))
+    has_ninebot_service = bool(ninebot_services)
 
     write_like: list[tuple[str, str, list[str]]] = []  # (service, char, props)
-    rx_present = tx_present = False
+    write_char_present = notify_char_present = False
     total_chars = 0
     for s in services:
         s_uuid = ref.normalize_uuid(s["uuid"])
@@ -63,10 +64,10 @@ def analyze_snapshot(snap: dict) -> dict:
             total_chars += 1
             c_uuid = ref.normalize_uuid(c["uuid"])
             props = char_props(c)
-            if c_uuid == ref.NUS_RX_CHAR_UUID:
-                rx_present = True
-            if c_uuid == ref.NUS_TX_CHAR_UUID:
-                tx_present = True
+            if c_uuid in {ref.NUS_RX_CHAR_UUID, ref.NB_WRITE_CHAR_UUID}:
+                write_char_present = True
+            if c_uuid in {ref.NUS_TX_CHAR_UUID, ref.NB_NOTIFY_CHAR_UUID}:
+                notify_char_present = True
             if ref.WRITE_LIKE_PROPERTIES.intersection(props):
                 write_like.append((s_uuid, c_uuid, props))
 
@@ -75,9 +76,10 @@ def analyze_snapshot(snap: dict) -> dict:
         "known_family": ref.known_name_prefix(snap.get("name")),
         "service_count": len(services),
         "characteristic_count": total_chars,
-        "has_nus_service": has_nus,
-        "nus_rx_present": rx_present,
-        "nus_tx_present": tx_present,
+        "has_ninebot_service": has_ninebot_service,
+        "ninebot_services": ninebot_services,
+        "command_write_char_present": write_char_present,
+        "notify_char_present": notify_char_present,
         "write_like": write_like,
         "service_uuids": sorted(svc_uuids),
     }
@@ -109,12 +111,13 @@ def render_markdown(doc: dict, source_path: str) -> str:
             out.append(f"### Device: {a['name'] or '(unknown)'}\n")
             out.append(f"- Known family by name prefix: **{a['known_family'] or 'not matched'}**")
             out.append(f"- Services: {a['service_count']}, characteristics: {a['characteristic_count']}")
-            out.append(f"- Nordic UART Service present: **{'YES' if a['has_nus_service'] else 'no'}**"
-                       f" (RX write char: {'yes' if a['nus_rx_present'] else 'no'},"
-                       f" TX notify char: {'yes' if a['nus_tx_present'] else 'no'})")
-            if a["has_nus_service"]:
-                out.append("  - → matches the classic Xiaomi/Ninebot transport (docs/16). "
-                           "The RX char is the command channel; this tool never writes to it.")
+            out.append(f"- Ninebot transport service present: **{'YES' if a['has_ninebot_service'] else 'no'}**"
+                       f" (command write char: {'yes' if a['command_write_char_present'] else 'no'},"
+                       f" notify char: {'yes' if a['notify_char_present'] else 'no'})")
+            if a["has_ninebot_service"]:
+                out.append(f"  - Ninebot service UUID(s): {', '.join(a['ninebot_services'])}")
+                out.append("  - → matches a Ninebot/Xiaomi transport (docs/16, family A NUS or family B native). "
+                           "The write char is the command channel; this tool never writes to it.")
             out.append("")
             if a["write_like"]:
                 out.append("- **Write-capable characteristics (potential command channel, level E — NOT written to):**")
@@ -122,7 +125,7 @@ def render_markdown(doc: dict, source_path: str) -> str:
                 out.append("  | Service UUID | Characteristic UUID | Properties |")
                 out.append("  |---|---|---|")
                 for s_uuid, c_uuid, props in a["write_like"]:
-                    note = " (NUS RX)" if c_uuid == ref.NUS_RX_CHAR_UUID else ""
+                    note = " (command channel)" if ref.is_command_write_char(c_uuid) else ""
                     out.append(f"  | {s_uuid} | {c_uuid}{note} | {', '.join(props)} |")
                 out.append("")
             else:

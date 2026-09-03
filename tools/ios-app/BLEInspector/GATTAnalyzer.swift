@@ -84,8 +84,8 @@ enum GATTAnalyzer {
         return out
     }
 
-    static func hasNUS(_ snap: GATTSnapshot) -> Bool {
-        snap.services.contains { GATTCatalog.isNUSService($0.uuid) }
+    static func hasNinebotService(_ snap: GATTSnapshot) -> Bool {
+        snap.services.contains { NinebotRef.isNinebotService($0.uuid) }
     }
 
     static func analyze(_ snap: GATTSnapshot) -> [Finding] {
@@ -105,16 +105,17 @@ enum GATTAnalyzer {
                         ". Maps this unit to a model + firmware version (docs/02, docs/16)."))
         }
 
-        if hasNUS(snap) {
+        if hasNinebotService(snap) {
             findings.append(Finding(level: .notable,
-                title: "Nordic UART Service present",
-                detail: "Matches the classic Xiaomi/Ninebot transport. The RX characteristic " +
-                        "6e40…0002 is the command channel — this tool records it but never writes to it."))
+                title: "Ninebot/Xiaomi transport service present",
+                detail: "Matches a Ninebot transport (Nordic UART family A, or native Ninebot family B " +
+                        "with UUID embedding \"ninebot\"). The …0002 write characteristic is the command " +
+                        "channel — this tool records it but never writes to it."))
         }
 
         let writers = writeCapable(snap)
         if !writers.isEmpty {
-            let nusRXwritable = writers.contains { GATTCatalog.isNUSRX($0.char) }
+            let nusRXwritable = writers.contains { NinebotRef.isCommandWriteChar($0.char) }
             let bullets = writers.map { w -> String in
                 let known = GATTCatalog.name(for: w.char).map { " (\($0))" } ?? ""
                 return "• \(w.char)\(known) [\(w.props.joined(separator: ", "))]"

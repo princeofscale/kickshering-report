@@ -33,7 +33,7 @@ struct AdvertisementRecord: Codable {
     let manufacturerDataHex: String?
     let isConnectable: Bool?
     let likelyNinebotFamily: String?      // set if name/service matches known Ninebot/Xiaomi markers
-    let advertisesNordicUART: Bool
+    let advertisesNinebotService: Bool    // NUS (family A) or native Ninebot (family B)
 }
 
 struct CharacteristicRecord: Codable {
@@ -143,7 +143,7 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
         let resolvedName = peripheral.name ?? localName
 
-        let advertisesNUS = svcUUIDs.contains { $0.caseInsensitiveCompare(NinebotRef.nusServiceUUID) == .orderedSame }
+        let advertisesNinebot = svcUUIDs.contains { NinebotRef.isNinebotService($0) }
         let family = NinebotRef.familyForName(resolvedName)
 
         let record = AdvertisementRecord(
@@ -155,7 +155,7 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             manufacturerDataHex: mfgHex,
             isConnectable: connectable,
             likelyNinebotFamily: family,
-            advertisesNordicUART: advertisesNUS
+            advertisesNinebotService: advertisesNinebot
         )
         DispatchQueue.main.async {
             self.discovered[id] = record
