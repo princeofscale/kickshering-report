@@ -213,14 +213,45 @@ enum GATTAnalyzer {
         return out
     }
 
+    /// Richer report for a SAVED capture — includes state/note/advertising/presence context.
+    static func markdownReport(for saved: SavedSnapshot) -> String {
+        var out = markdownReport(for: saved.snapshot, label: saved.label)
+        out += "## Capture context\n"
+        out += "- Operator: \(saved.operatorTag ?? "—")\n"
+        out += "- State: \(saved.state ?? "—")\n"
+        if let n = saved.note { out += "- Note (confounders): \(n)\n" }
+        if let st = saved.sighting {
+            out += "- Presence: \(st.count) sightings, RSSI \(st.minRSSI)…\(st.maxRSSI)\n"
+        }
+        if let adv = saved.advertising {
+            out += "- Advertised services: \(adv.serviceUUIDs.joined(separator: ", ").ifEmpty("—"))\n"
+            if let p = GATTCatalog.parseManufacturerData(adv.manufacturerDataHex) {
+                out += "- Mfg data: company 0x\(String(format: "%04x", p.companyID)) (\(p.label)), " +
+                       "payload 0x\(p.payloadHex) (payload format UNCONFIRMED)\n"
+            }
+        }
+        return out
+    }
+
     static func markdownDiffReport(_ a: SavedSnapshot, _ b: SavedSnapshot) -> String {
         var out = "# GATT diff — \(a.label) (A) vs \(b.label) (B)\n\n"
-        out += "_Offline comparison. Focus: does the reachable GATT surface change with rental state?_\n\n"
+        out += "_Offline comparison. Null hypothesis: rental state is NOT reflected in readable GATT " +
+               "(docs/20.4). An identical surface is the EXPECTED result, not a failure._\n\n"
+
+        // Capture context (confounders) — required for a valid diff (docs/15.5).
+        out += "## Capture context\n"
+        out += "- A: state=\(a.state ?? "?"), op=\(a.operatorTag ?? "?"), at=\(ISO8601DateFormatter().string(from: a.capturedAt))"
+        out += (a.note.map { ", note=\($0)" } ?? "") + "\n"
+        out += "- B: state=\(b.state ?? "?"), op=\(b.operatorTag ?? "?"), at=\(ISO8601DateFormatter().string(from: b.capturedAt))"
+        out += (b.note.map { ", note=\($0)" } ?? "") + "\n\n"
+
+        // GATT diff (structural).
         let entries = diff(a.snapshot, b.snapshot)
+        let sharedServices = Set(surface(a.snapshot).keys).intersection(surface(b.snapshot).keys).count
+        out += "## GATT surface\n"
         if entries.isEmpty {
-            out += "**No differences** — identical service/characteristic/property surface.\n\n"
-            out += "This does NOT prove the main hypothesis (that needs a real write test on an isolated lab " +
-                   "device, out of scope), but it shows the BLE GATT structure does not gate on rental state.\n"
+            out += "**No change observed** across \(sharedServices) shared service(s): identical " +
+                   "service/characteristic/property surface. (Expected under the null hypothesis.)\n\n"
         } else {
             out += "| Service | Only in A (\(a.label)) | Only in B (\(b.label)) |\n|---|---|---|\n"
             for e in entries {
@@ -228,8 +259,46 @@ enum GATTAnalyzer {
                        "| \(e.onlyInB.joined(separator: "<br>").ifEmpty("—")) |\n"
             }
             out += "\nIf characteristics became reachable only AFTER an authorized rental started, that points " +
-                   "to backend involvement in BLE availability, which would weaken the local-unlock hypothesis.\n"
+                   "to backend involvement in BLE availability, which would weaken the local-unlock hypothesis.\n\n"
         }
+
+        // Advertising diff (state often lives here, not in GATT — docs/20.4).
+        out += "## Advertising\n"
+        out += advertisingDiff(a.advertising, b.advertising)
+
+        // Presence (decisive Tuul test).
+        out += "\n## Presence (BLE exposure)\n"
+        out += "- A sightings: \(a.sighting.map { "\($0.count) (RSSI \($0.minRSSI)…\($0.maxRSSI))" } ?? "—")\n"
+        out += "- B sightings: \(b.sighting.map { "\($0.count) (RSSI \($0.minRSSI)…\($0.maxRSSI))" } ?? "—")\n"
+        return out
+    }
+
+    private static func advertisingDiff(_ a: AdvertisementRecord?, _ b: AdvertisementRecord?) -> String {
+        guard let a = a, let b = b else { return "One or both captures lack advertising data.\n" }
+        var out = ""
+        let aServices = Set(a.serviceUUIDs.map { GATTCatalog.normalize($0) })
+        let bServices = Set(b.serviceUUIDs.map { GATTCatalog.normalize($0) })
+        let svcAOnly = aServices.subtracting(bServices).sorted()
+        let svcBOnly = bServices.subtracting(aServices).sorted()
+        if svcAOnly.isEmpty && svcBOnly.isEmpty {
+            out += "- Advertised services: no change observed.\n"
+        } else {
+            out += "- Advertised services only in A: \(svcAOnly.joined(separator: ", ").ifEmpty("—"))\n"
+            out += "- Advertised services only in B: \(svcBOnly.joined(separator: ", ").ifEmpty("—"))\n"
+        }
+        let am = GATTCatalog.parseManufacturerData(a.manufacturerDataHex)
+        let bm = GATTCatalog.parseManufacturerData(b.manufacturerDataHex)
+        func mfg(_ m: (companyID: Int, label: String, payloadHex: String)?) -> String {
+            guard let m = m else { return "—" }
+            return "company 0x\(String(format: "%04x", m.companyID)) (\(m.label)), payload 0x\(m.payloadHex)"
+        }
+        out += "- Mfg data A: \(mfg(am))\n- Mfg data B: \(mfg(bm))\n"
+        if a.manufacturerDataHex == b.manufacturerDataHex {
+            out += "- Manufacturer data: no change observed.\n"
+        } else {
+            out += "- **Manufacturer data CHANGED** between states — inspect payload above (format UNCONFIRMED).\n"
+        }
+        if a.name != b.name { out += "- Name changed: '\(a.name ?? "—")' → '\(b.name ?? "—")'\n" }
         return out
     }
 }

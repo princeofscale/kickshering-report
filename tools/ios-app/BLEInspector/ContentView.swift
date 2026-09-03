@@ -111,6 +111,8 @@ struct DeviceDetailView: View {
     @State private var confirmConnect = false
     @State private var label = ""
     @State private var operatorTag = "Whoosh"
+    @State private var captureState = "pre-rental"
+    @State private var note = ""
     @State private var savedConfirmation = false
 
     private var snapshot: GATTSnapshot? { ble.snapshot(for: record.peripheralID) }
@@ -118,12 +120,20 @@ struct DeviceDetailView: View {
     var body: some View {
         NavigationView {
             List {
-                Section("Advertising") {
+                Section("Advertising & presence") {
                     row("Name", record.name ?? "—")
                     row("RSSI", "\(record.rssi)")
                     row("Family", record.likelyNinebotFamily ?? "not matched")
                     row("Ninebot service advertised", record.advertisesNinebotService ? "yes" : "no")
-                    if let mfg = record.manufacturerDataHex { row("Mfg data", "0x\(mfg)") }
+                    if let st = ble.sightings[record.peripheralID] {
+                        row("Sightings", "\(st.count)  (RSSI \(st.minRSSI)…\(st.maxRSSI))")
+                    }
+                    if let mfg = record.manufacturerDataHex {
+                        row("Mfg data", "0x\(mfg)")
+                        if let p = GATTCatalog.parseManufacturerData(mfg) {
+                            row("  company", "0x\(String(format: "%04x", p.companyID)) (\(p.label))")
+                        }
+                    }
                 }
 
                 Section("Read-only GATT analysis") {
@@ -138,16 +148,25 @@ struct DeviceDetailView: View {
 
                 if let snap = snapshot {
                     Section("Save this capture (for before/after diff)") {
-                        TextField("Label (e.g. 'Whoosh A12 pre-rental')", text: $label)
+                        TextField("Label (e.g. 'Whoosh A12')", text: $label)
                         Picker("Operator", selection: $operatorTag) {
                             Text("Whoosh").tag("Whoosh")
                             Text("Urent").tag("Urent")
                             Text("Own device").tag("own device")
                             Text("Other").tag("other")
                         }
+                        Picker("State", selection: $captureState) {
+                            Text("pre-rental").tag("pre-rental")
+                            Text("during-rental").tag("during-rental")
+                            Text("control-A (repeat)").tag("control-A")
+                            Text("control-B (other unit)").tag("control-B")
+                        }
+                        TextField("Note: phone/OS/app ver/battery/place/time", text: $note)
                         Button("Save snapshot") {
                             store.save(snap, label: label.isEmpty ? (record.name ?? "capture") : label,
-                                       operatorTag: operatorTag)
+                                       operatorTag: operatorTag, state: captureState,
+                                       note: note.isEmpty ? nil : note,
+                                       advertising: record, sighting: ble.sightings[record.peripheralID])
                             savedConfirmation = true
                         }
                     }
@@ -222,11 +241,11 @@ struct SavedView: View {
                 }
                 ForEach(store.items) { item in
                     NavigationLink {
-                        ReportView(markdown: GATTAnalyzer.markdownReport(for: item.snapshot, label: item.label))
+                        ReportView(markdown: GATTAnalyzer.markdownReport(for: item))
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.label).bold()
-                            Text("\(item.operatorTag ?? "—") · \(item.snapshot.services.count) services · \(DateFormatter.short.string(from: item.capturedAt))")
+                            Text("\(item.operatorTag ?? "—") · \(item.state ?? "—") · \(item.snapshot.services.count) svc · \(DateFormatter.short.string(from: item.capturedAt))")
                                 .font(.caption2).foregroundColor(.secondary)
                         }
                     }

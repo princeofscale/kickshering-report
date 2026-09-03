@@ -123,4 +123,27 @@ enum GATTCatalog {
     static func isNUSService(_ uuid: String) -> Bool { normalize(uuid) == NinebotRef.nusServiceUUID }
     static func isNUSRX(_ uuid: String) -> Bool { normalize(uuid) == NinebotRef.nusRXCharUUID }
     static func isNUSTX(_ uuid: String) -> Bool { normalize(uuid) == NinebotRef.nusTXCharUUID }
+
+    // Bluetooth SIG company identifiers (little-endian, first 2 bytes of manufacturer data).
+    // Only labels we can attest; everything else is reported as an unknown ID (no guessing).
+    static let companyIDs: [Int: String] = [
+        0x038F: "Xiaomi Inc.",
+        0x0157: "Anhui Huami (Xiaomi ecosystem)",
+    ]
+
+    /// Parse manufacturer-specific data hex: returns (companyID, label, payloadHex).
+    /// Format of the payload itself is NOT decoded (community reference is incomplete/UNCONFIRMED),
+    /// so only the company ID is interpreted; the rest is kept as raw hex for the record.
+    static func parseManufacturerData(_ hex: String?) -> (companyID: Int, label: String, payloadHex: String)? {
+        guard let hex = hex, hex.count >= 4 else { return nil }
+        let bytes = stride(from: hex.startIndex, to: hex.endIndex, by: 2).compactMap { i -> UInt8? in
+            let j = hex.index(i, offsetBy: 2, limitedBy: hex.endIndex) ?? hex.endIndex
+            return UInt8(hex[i..<j], radix: 16)
+        }
+        guard bytes.count >= 2 else { return nil }
+        let companyID = Int(bytes[0]) | (Int(bytes[1]) << 8)   // little-endian
+        let label = companyIDs[companyID] ?? "unknown company ID"
+        let payloadHex = bytes.dropFirst(2).map { String(format: "%02x", $0) }.joined()
+        return (companyID, label, payloadHex)
+    }
 }

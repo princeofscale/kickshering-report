@@ -31,13 +31,28 @@ from typing import Any
 import ninebot_reference as ref
 
 
-def load(path: str) -> dict:
+def load(path: str):
     with open(path) as f:
         return json.load(f)
 
 
-def extract_snapshots(doc: dict) -> list[dict]:
-    """Return a list of GATT snapshots ({name, services:[...]}) from any supported shape."""
+def extract_snapshots(doc) -> list[dict]:
+    """Return a list of GATT snapshots ({name, services:[...]}) from any supported shape:
+    - iOS raw export: {"gattSnapshots": [...]}
+    - python enumerate: {"services": [...]}
+    - iOS 'Export all' (SnapshotStore): a top-level list of SavedSnapshot, each with
+      .snapshot, .state, .label -- unwrapped here, carrying state/label onto the snapshot."""
+    if isinstance(doc, list):  # Export-all: [SavedSnapshot, ...]
+        out = []
+        for item in doc:
+            snap = item.get("snapshot") if isinstance(item, dict) else None
+            if snap is not None:
+                snap = dict(snap)
+                snap.setdefault("name", item.get("label"))
+                snap["_state"] = item.get("state")
+                snap["_label"] = item.get("label")
+                out.append(snap)
+        return out
     if "gattSnapshots" in doc:
         return doc["gattSnapshots"]
     if "services" in doc:  # single-device python enumerate export
@@ -90,7 +105,7 @@ def render_markdown(doc: dict, source_path: str) -> str:
     out.append(f"# GATT log analysis — `{source_path}`\n")
     out.append("_Generated offline by `analyze_gatt_log.py` — no device was contacted._\n")
 
-    ads = doc.get("advertisements", [])
+    ads = doc.get("advertisements", []) if isinstance(doc, dict) else []
     if ads:
         out.append("## Advertising records\n")
         out.append("| Name | Family (by prefix) | RSSI | Advertised services |")
@@ -185,15 +200,56 @@ def diff_snapshots(doc_a: dict, doc_b: dict, path_a: str, path_b: str) -> str:
     return "\n".join(out)
 
 
+def consistency_report(doc, path: str) -> str:
+    """Group snapshots by _state (from an iOS Export-all) and check surface stability
+    across repeats -- the negative-control test (docs/20.4): repeated captures of the
+    SAME state should be identical; differences are noise/confounders, not findings."""
+    snaps = extract_snapshots(doc)
+    groups: dict[str, list[dict]] = {}
+    for s in snaps:
+        groups.setdefault(s.get("_state") or "(no state)", []).append(s)
+    out = [f"# Consistency check — `{path}`\n",
+           "_Repeated captures of the same state should match. Divergence = noise/confounder._\n"]
+    for state, items in sorted(groups.items()):
+        surfaces = [frozenset().union(*[set(v) for v in surface_map(i).values()]) if surface_map(i) else frozenset()
+                    for i in items]
+        stable = all(x == surfaces[0] for x in surfaces)
+        out.append(f"## State: {state} — {len(items)} capture(s): "
+                   f"**{'STABLE' if stable else 'DIVERGENT'}**")
+        if not stable:
+            base = surfaces[0]
+            for idx, srf in enumerate(surfaces[1:], start=2):
+                only_new = sorted(srf - base)
+                only_gone = sorted(base - srf)
+                if only_new or only_gone:
+                    out.append(f"- capture #{idx}: +{only_new or '—'} / -{only_gone or '—'}")
+        out.append("")
+    return "\n".join(out)
+
+
+def surface_map(snap: dict) -> dict[str, set[str]]:
+    m: dict[str, set[str]] = {}
+    for s in snap.get("services", []):
+        key = ref.normalize_uuid(s["uuid"])
+        m.setdefault(key, set())
+        for c in s.get("characteristics", []):
+            m[key].add(f"{ref.normalize_uuid(c['uuid'])} [{','.join(char_props(c))}]")
+    return m
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("log", help="Path to a JSON log (iOS export or python script export)")
+    parser.add_argument("log", help="Path to a JSON log (iOS export, python export, or iOS Export-all list)")
     parser.add_argument("--diff", metavar="OTHER_LOG", help="Second GATT log to diff against the first")
+    parser.add_argument("--consistency", action="store_true",
+                        help="Group by capture state and check stability across repeats (negative control)")
     parser.add_argument("--out", help="Write Markdown to this path instead of stdout")
     args = parser.parse_args()
 
     doc = load(args.log)
-    if args.diff:
+    if args.consistency:
+        md = consistency_report(doc, args.log)
+    elif args.diff:
         md = diff_snapshots(doc, load(args.diff), args.log, args.diff)
     else:
         md = render_markdown(doc, args.log)

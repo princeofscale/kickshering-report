@@ -14,8 +14,12 @@ struct SavedSnapshot: Identifiable, Codable {
     var id = UUID()
     var label: String            // e.g. "Whoosh #A12 pre-rental"
     var operatorTag: String?     // "Whoosh" / "Urent" / "own device"
+    var state: String?           // "pre-rental" / "during-rental" / "control-A" / "control-B"
+    var note: String?            // confounders: phone/OS/app version/battery/location/time
     var capturedAt: Date
     var snapshot: GATTSnapshot
+    var advertising: AdvertisementRecord?   // ADV captured alongside GATT (state often lives here)
+    var sighting: SightingStats?            // presence stats at capture time
 }
 
 final class SnapshotStore: ObservableObject {
@@ -28,9 +32,12 @@ final class SnapshotStore: ObservableObject {
 
     init() { load() }
 
-    func save(_ snap: GATTSnapshot, label: String, operatorTag: String?) {
-        let item = SavedSnapshot(label: label, operatorTag: operatorTag,
-                                 capturedAt: Date(), snapshot: snap)
+    func save(_ snap: GATTSnapshot, label: String, operatorTag: String?,
+              state: String? = nil, note: String? = nil,
+              advertising: AdvertisementRecord? = nil, sighting: SightingStats? = nil) {
+        let item = SavedSnapshot(label: label, operatorTag: operatorTag, state: state, note: note,
+                                 capturedAt: Date(), snapshot: snap,
+                                 advertising: advertising, sighting: sighting)
         items.insert(item, at: 0)
         persist()
     }

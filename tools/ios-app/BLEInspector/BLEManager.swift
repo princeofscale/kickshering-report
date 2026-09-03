@@ -57,6 +57,17 @@ struct GATTSnapshot: Codable {
     var services: [ServiceRecord]
 }
 
+/// Presence statistics accumulated across many advertising sightings of one peripheral.
+/// This is the evidence for the decisive "is BLE even present/stable?" test (docs/17 Part A,
+/// docs/18 Tuul precedent): a rental unit with BLE disabled will simply never be sighted.
+struct SightingStats: Codable {
+    var count: Int
+    var firstSeen: Date
+    var lastSeen: Date
+    var minRSSI: Int
+    var maxRSSI: Int
+}
+
 struct ExportPayload: Codable {
     let advertisements: [AdvertisementRecord]
     let gattSnapshots: [GATTSnapshot]
@@ -70,6 +81,7 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
 
     @Published var isScanning = false
     @Published var discovered: [String: AdvertisementRecord] = [:]   // keyed by peripheral identifier string
+    @Published var sightings: [String: SightingStats] = [:]          // presence stats per peripheral
     @Published var log: [String] = []
     @Published var snapshots: [String: GATTSnapshot] = [:]           // keyed by peripheral identifier string
     @Published var bluetoothState: String = "unknown"
@@ -157,8 +169,19 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             likelyNinebotFamily: family,
             advertisesNinebotService: advertisesNinebot
         )
+        let rssi = RSSI.intValue
         DispatchQueue.main.async {
             self.discovered[id] = record
+            if var st = self.sightings[id] {
+                st.count += 1
+                st.lastSeen = Date()
+                st.minRSSI = min(st.minRSSI, rssi)
+                st.maxRSSI = max(st.maxRSSI, rssi)
+                self.sightings[id] = st
+            } else {
+                self.sightings[id] = SightingStats(count: 1, firstSeen: Date(), lastSeen: Date(),
+                                                   minRSSI: rssi, maxRSSI: rssi)
+            }
         }
     }
 

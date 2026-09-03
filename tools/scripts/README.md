@@ -59,7 +59,14 @@ python3 analyze_gatt_log.py ../../logs/2026-09-03-max-plus/post-rental-gatt.json
 # сравнение до/после аренды (ключевой шаг гипотезы, docs/15 шаг 3)
 python3 analyze_gatt_log.py pre-rental-gatt.json --diff post-rental-gatt.json \
         --out ../../logs/2026-09-03-max-plus/analysis.md
+
+# consistency-check по iOS "Export all" (несколько захватов, группировка по state):
+#   повторы одного состояния должны совпадать (negative control, docs/20.4)
+python3 analyze_gatt_log.py ble-snapshots-export.json --consistency
 ```
+
+Понимает три формата: iOS raw export (`{gattSnapshots}`), python-скрипты (`{services}`) и
+iOS «Export all» — массив сохранённых захватов с полями `state`/`label`/`advertising`.
 
 Верифицированные UUID'ы/имена, с которыми сверяется анализатор, вынесены в
 [`ninebot_reference.py`](ninebot_reference.py) и задокументированы в
