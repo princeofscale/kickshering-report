@@ -9,6 +9,7 @@
 | Malicious Pairing + Session Downgrade атаки | Xiaomi M365/Pro1/Pro2/1S/Essential/Mi3 (2016–2021) | **CONFIRMED** для Xiaomi-ветки | E-Spoofer, WiSec'23 |
 | BLE OTA дашборд-прошивки без разборки корпуса, ранние ревизии без RDP/anti-downgrade | Ninebot Max/G30 (консьюмер) | **PROBABLE** (community-подтверждено, не первичный академический источник) | ScooterHacking.org, joeybabcock.me |
 | AES-ECB + SHA-1 как криптопримитивы "classic" протокола | Ninebot classic-протокольная линия (ES/Max G30 relatives) | **PROBABLE** | NinebotCrypto (scooterhacking), community RE |
+| Транспорт "classic" протокола = Nordic UART Service (RX `…0002` write, TX `…0003` notify), header `55 AA`, cmd read/write `0x01`/`0x03` | Xiaomi/Ninebot консьюмерская линия | **CONFIRMED (по первоисточникам)** — см. [§16](16-ble-protocol-reference.md) | py9b `ble.py`, CamiAlfa `ninebot.h` |
 | Broken authorization при создании заказа аренды через backend API | Неустановленный русскоязычный кикшеринг-оператор (не привязано конкретно к Whoosh/Urent) | **CONFIRMED существование класса**, оператор не идентифицирован | Habr, "Как мы кикшеринг взломали", апрель 2022 |
 | Локальный BLE-unlock без rental-session на актуальных Whoosh/Urent юнитах | Whoosh (Max G30/Max Plus), Urent (Max Plus) | **UNCONFIRMED** | Данное исследование (гипотеза, не PoC) |
 | Официальное заявление "нельзя удалённо подключиться к плате" | МТС Юрент | **Заявление вендора, не независимо верифицировано** | Gazeta.ru, май 2025 |

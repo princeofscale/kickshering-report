@@ -42,6 +42,8 @@ impact**, строго в рамках легального security research: �
 14. [Источники](docs/14-sources.md)
 15. [**Field Testing Guide (iPhone)**](docs/15-field-testing-guide.md) — пошаговый протокол
     физической проверки
+16. [**BLE Protocol Reference**](docs/16-ble-protocol-reference.md) — verified UUID'ы, имена,
+    пакетный формат (по первоисточникам)
 
 ## Итоговое резюме (один абзац)
 

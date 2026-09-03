@@ -47,7 +47,19 @@ struct ContentView: View {
                     Section("Discovered devices (\(ble.discovered.count)) — tap to connect & enumerate (read-only)") {
                         ForEach(Array(ble.discovered.values.sorted(by: { $0.rssi > $1.rssi })), id: \.peripheralID) { record in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(record.name ?? "Unnamed device").bold()
+                                HStack(spacing: 6) {
+                                    Text(record.name ?? "Unnamed device").bold()
+                                    if record.likelyNinebotFamily != nil || record.advertisesNordicUART {
+                                        Text("Ninebot/Xiaomi?")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .background(Color.orange.opacity(0.25))
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                if let fam = record.likelyNinebotFamily {
+                                    Text(fam).font(.caption2).foregroundColor(.orange)
+                                }
                                 Text("RSSI: \(record.rssi)   ID: \(String(record.peripheralID.prefix(8)))…")
                                     .font(.caption2)
                                 if !record.serviceUUIDs.isEmpty {

@@ -15,6 +15,7 @@
 | [`ios-app/`](ios-app/README.md) | iPhone (через Xcode) | Пассивный BLE-скан + read-only GATT enumerate/read, экспорт JSON |
 | [`scripts/ble_passive_scan.py`](scripts/README.md) | macOS/Linux/Windows laptop (опционально) | То же пассивное сканирование advertising, для кросс-проверки/автоматизации |
 | [`scripts/ble_gatt_enumerate.py`](scripts/README.md) | macOS/Linux/Windows laptop (опционально) | Read-only connect + enumerate одного устройства по адресу |
+| [`scripts/analyze_gatt_log.py`](scripts/README.md) | где угодно (офлайн, без BLE) | Разбор экспортированного JSON-лога → Markdown-таблица; diff до/после аренды |
 
 iOS-приложение — основной инструмент, раз у вас iPhone. Python-скрипты — опциональное
 дополнение, если у вас также есть ноутбук (например, для автоматизации серии сканирований или

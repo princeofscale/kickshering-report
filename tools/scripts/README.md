@@ -43,6 +43,28 @@ python3 ble_gatt_enumerate.py AA:BB:CC:DD:EE:FF --i-own-this-device --out ../../
 (и только читает) характеристики со свойством `read`. Ни при каких условиях не пишет в
 характеристики — в файле физически нет вызова `write_gatt_char`.
 
+## `analyze_gatt_log.py` — офлайн-анализатор экспортированных логов
+
+Не трогает Bluetooth. Читает JSON-лог (из iOS-приложения или из `ble_*` скриптов) и
+формирует Markdown-таблицу: подсвечивает устройства известного Ninebot/Xiaomi семейства,
+находит Nordic UART Service и его RX/TX характеристики, перечисляет все write-способные
+характеристики (потенциальный команд-канал, уровень E из
+[docs/10](../../docs/10-safe-poc-methodology.md)) — **не записывая в них**, и умеет делать
+diff двух GATT-снапшотов (до/после аренды).
+
+```bash
+# анализ одного снапшота
+python3 analyze_gatt_log.py ../../logs/2026-09-03-max-plus/post-rental-gatt.json
+
+# сравнение до/после аренды (ключевой шаг гипотезы, docs/15 шаг 3)
+python3 analyze_gatt_log.py pre-rental-gatt.json --diff post-rental-gatt.json \
+        --out ../../logs/2026-09-03-max-plus/analysis.md
+```
+
+Верифицированные UUID'ы/имена, с которыми сверяется анализатор, вынесены в
+[`ninebot_reference.py`](ninebot_reference.py) и задокументированы в
+[docs/16 — BLE Protocol Reference](../../docs/16-ble-protocol-reference.md).
+
 ## Формат логов
 
 См. [`evidence_log_schema.md`](evidence_log_schema.md) — описание JSON-схемы, которую

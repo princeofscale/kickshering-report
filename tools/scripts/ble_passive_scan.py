@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 
 from bleak import BleakScanner
 
+import ninebot_reference as ref
+
 
 async def scan(seconds: float, out_path: str, name_filter: str | None) -> None:
     records = []
@@ -31,20 +33,27 @@ async def scan(seconds: float, out_path: str, name_filter: str | None) -> None:
         if name_filter and (not name or name_filter.lower() not in name.lower()):
             return
 
+        svc_uuids = [ref.normalize_uuid(u) for u in advertisement_data.service_uuids]
+        family = ref.known_name_prefix(name)
+        likely_ninebot = family is not None or ref.NUS_SERVICE_UUID in svc_uuids
+
         rec = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "address": device.address,
             "name": name,
             "rssi": advertisement_data.rssi,
-            "service_uuids": list(advertisement_data.service_uuids),
+            "service_uuids": svc_uuids,
             "manufacturer_data_hex": {
                 str(k): v.hex() for k, v in advertisement_data.manufacturer_data.items()
             },
+            "likely_ninebot_family": family,
+            "advertises_nordic_uart": ref.NUS_SERVICE_UUID in svc_uuids,
         }
         records.append(rec)
+        flag = "  <-- likely Ninebot/Xiaomi (docs/16)" if likely_ninebot else ""
         print(
             f"[{rec['timestamp']}] {rec['name'] or '(unnamed)'} "
-            f"{rec['address']} RSSI={rec['rssi']} services={rec['service_uuids']}"
+            f"{rec['address']} RSSI={rec['rssi']} services={rec['service_uuids']}{flag}"
         )
 
     print("Passive scan starting -- listening to advertising only, no connections will be made.")

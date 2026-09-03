@@ -6,9 +6,13 @@
 
 1. **Classic Ninebot/Xiaomi protocol** (используется на ES-серии, M365-семействе, MAX G30 и
    "родственных" моделях):
-   - Пакетный формат: `5A A5 <len> <src> <dst> <cmd> <arg> <payload> <checksum>`
-     (UART/BLE UART-характеристика) — задокументировано в `etransport/ninebot-docs`,
-     `CamiAlfa/M365-BLE-PROTOCOL`, `ub4raf/Ninebot-PROTOCOL`.
+   - Пакетный формат (verified по первоисточнику `CamiAlfa/M365-BLE-PROTOCOL/ninebot.h`):
+     header `55 AA`, далее `<len> <addr/dir> <cmd> <arg> <payload...> <checksum(LE, ~sum)>`;
+     `cmd`: read = `0x01`, write = `0x03`; max payload `0x38` (56 байт, ограничение BLE-буфера).
+     Транспорт — Nordic UART Service (NUS), см. [§16 BLE Protocol Reference](16-ble-protocol-reference.md).
+     (Ранее в этом отчёте фигурировал вариант заголовка `5A A5` — он не подтверждён
+     первоисточником и заменён на verified-значение `55 AA`; отдельные форки/варианты могут
+     использовать иные sync-байты, но primary source определяет именно `55 AA`.)
    - Криптослой (`NinebotCrypto`, реконструкция протокола majsi): key-generation на основе
      **SHA-1**, шифрование **AES**, при этом community-реализация explicitly отмечает
      известный **"crypto iterator bug"** и что часть функциональности "currently broken" в

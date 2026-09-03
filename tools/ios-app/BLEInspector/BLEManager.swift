@@ -19,6 +19,26 @@
 import Foundation
 import CoreBluetooth
 
+// MARK: - Verified Ninebot/Xiaomi constants (see ../../../docs/16-ble-protocol-reference.md)
+
+enum NinebotRef {
+    // Nordic UART Service transport used by the classic protocol (source: etransport/py9b).
+    static let nusServiceUUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
+    static let nusRXCharUUID  = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"  // phone -> scooter (write)
+    static let nusTXCharUUID  = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"  // scooter -> phone (notify)
+    static let namePrefixes: [String: String] = [
+        "MISc": "Mi Scooter (Xiaomi M365 family)",
+        "NBSc": "Ninebot Scooter (Max/ES family)",
+    ]
+
+    /// Human label if the advertised name matches a known prefix, else nil.
+    static func familyForName(_ name: String?) -> String? {
+        guard let name = name else { return nil }
+        for (prefix, label) in namePrefixes where name.hasPrefix(prefix) { return label }
+        return nil
+    }
+}
+
 // MARK: - Data models (Codable for JSON export)
 
 struct AdvertisementRecord: Codable {
@@ -29,6 +49,8 @@ struct AdvertisementRecord: Codable {
     let serviceUUIDs: [String]
     let manufacturerDataHex: String?
     let isConnectable: Bool?
+    let likelyNinebotFamily: String?      // set if name/service matches known Ninebot/Xiaomi markers
+    let advertisesNordicUART: Bool
 }
 
 struct CharacteristicRecord: Codable {
@@ -135,15 +157,21 @@ final class BLEManager: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             .map { String(format: "%02x", $0) }.joined()
         let connectable = advertisementData[CBAdvertisementDataIsConnectable] as? Bool
         let localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+        let resolvedName = peripheral.name ?? localName
+
+        let advertisesNUS = svcUUIDs.contains { $0.caseInsensitiveCompare(NinebotRef.nusServiceUUID) == .orderedSame }
+        let family = NinebotRef.familyForName(resolvedName)
 
         let record = AdvertisementRecord(
             peripheralID: id,
-            name: peripheral.name ?? localName,
+            name: resolvedName,
             rssi: RSSI.intValue,
             timestamp: Date(),
             serviceUUIDs: svcUUIDs,
             manufacturerDataHex: mfgHex,
-            isConnectable: connectable
+            isConnectable: connectable,
+            likelyNinebotFamily: family,
+            advertisesNordicUART: advertisesNUS
         )
         DispatchQueue.main.async {
             self.discovered[id] = record
