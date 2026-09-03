@@ -57,6 +57,10 @@ impact**, строго в рамках легального security research: �
     выключен = защита» (подтверждённый отраслевой прецедент)
 19. [**Смежные CVE и ландшафт инструментов**](docs/19-adjacent-cves-and-tools.md) — Yadea/Zero
     (2025–26), read-only vs модификация
+20. [**Методологический апгрейд**](docs/20-methodology-upgrades.md) — evidence ladder,
+    фальсифицируемость, negative controls, дисциплина классификации
+21. [**Passive-capture workflow**](docs/21-passive-capture-workflow.md) — nRF Sniffer +
+    Wireshark, reconstruction cross-check
 
 ## Итоговое резюме (один абзац)
 

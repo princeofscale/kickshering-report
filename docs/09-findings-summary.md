@@ -2,6 +2,11 @@
 
 [← Назад к индексу](../README.md)
 
+> **Дисциплина классификации** ([§20.5](20-methodology-upgrades.md#205-дисциплина-классификации)):
+> статус выше POSSIBLE требует артефакта ([§20.2](20-methodology-upgrades.md#202-evidence-ladder-ad--обязательный-артефакт));
+> заявления вендора — не доказательство; любой перенос consumer→rental/модель→модель без
+> конкретного обосновывающего наблюдения = unjustified extrapolation (POSSIBLE/UNCONFIRMED).
+
 | Находка | Продукт | Статус | Источник |
 |---|---|---|---|
 | BLE unlock/control без device-side password enforcement | Xiaomi M365, Ninebot ES2/ES4 (2019, до патча) | **CONFIRMED** | CVE-2019-13387 / Zimperium |

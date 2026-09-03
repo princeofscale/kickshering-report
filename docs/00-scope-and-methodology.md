@@ -58,6 +58,8 @@
 17. [Полевой чек-лист: проверка Whoosh и Urent с iPhone](17-whoosh-urent-checklist.md)
 18. [Прецедент Äike/Tuul: default-key unlock и «BLE выключен = защита»](18-aike-tuul-precedent.md)
 19. [Смежные CVE (2025–2026) и ландшафт инструментов](19-adjacent-cves-and-tools.md)
+20. [Методологический апгрейд (evidence ladder, фальсифицируемость, контроли)](20-methodology-upgrades.md)
+21. [Passive-capture workflow (nRF Sniffer + Wireshark)](21-passive-capture-workflow.md)
 
 Инструменты: [`tools/`](../tools/README.md) — iOS-приложение (Xcode/Swift) и Python-скрипты
 для read-only проверки на своём оборудовании.

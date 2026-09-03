@@ -47,6 +47,16 @@
 - **Инструменты проекта — строго read-only:** iOS-приложение (CoreBluetooth) + Python (bleak)
   для passive scan, GATT enumerate, decode Device Information (модель/прошивка), on-device diff
   «до/после аренды». Записи в характеристики нет by design.
+- **Методология (принята):** passive-capture-first; evidence ladder A(Observed)→B(Parsed)→
+  C(Reconstructed)→D(Cross-validated) с обязательным артефактом; фальсифицируемость (заранее
+  фиксировать H1/H0); negative controls для diff (null-гипотеза «state не в GATT», 3–5 снапшотов,
+  advertising/manufacturer-data, журнал конфаундеров); vendor claims не считаются доказательством;
+  «отсутствие доказательств ≠ доказательство отсутствия»; перенос consumer→rental/модель→модель
+  требует явного столбца Assumption.
+- **Responsible disclosure (искали 2026-09-03):** прямые `/.well-known/security.txt` на
+  whoosh.ru/urent.ru из тест-среды **не проверены** (egress-блок), публичной программы в общем
+  поиске не найдено → статус **UNCONFIRMED** (не «отсутствует»); требуется проверка с
+  неограниченной сети.
 
 ## Правила доказательности (обязательны)
 
